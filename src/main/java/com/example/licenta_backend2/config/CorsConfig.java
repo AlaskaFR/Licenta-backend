@@ -1,4 +1,3 @@
-// src/main/java/com/example/licenta_backend2/config/CorsConfig.java
 package com.example.licenta_backend2.config;
 
 import org.springframework.context.annotation.Bean;
@@ -15,7 +14,7 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("https://thundertimerecords.com");
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         source.registerCorsConfiguration("/**", config);
