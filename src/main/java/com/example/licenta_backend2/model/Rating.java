@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 
 @Entity
 public class Rating {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,6 +24,7 @@ public class Rating {
 
     private LocalDateTime updatedAt;
 
+    // Getters and Setters
     public Long getId() {
         return id;
     }

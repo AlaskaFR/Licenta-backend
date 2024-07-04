@@ -2,28 +2,21 @@ package com.example.licenta_backend2.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "products")
 public class Product {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "name")
     private String name;
 
+    @Column(name = "price")
     private BigDecimal price;
-    private String genre;
-    private String image;
-    private BigDecimal rating;
-    private int popularity;
-    private String artist;
-    private boolean availability;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -46,69 +39,5 @@ public class Product {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
-    }
-
-    public String getGenre() {
-        return genre;
-    }
-
-    public void setGenre(String genre) {
-        this.genre = genre;
-    }
-
-    public String getImage() {
-        return image;
-    }
-
-    public void setImage(String image) {
-        this.image = image;
-    }
-
-    public BigDecimal getRating() {
-        return rating;
-    }
-
-    public void setRating(BigDecimal rating) {
-        this.rating = rating;
-    }
-
-    public int getPopularity() {
-        return popularity;
-    }
-
-    public void setPopularity(int popularity) {
-        this.popularity = popularity;
-    }
-
-    public String getArtist() {
-        return artist;
-    }
-
-    public void setArtist(String artist) {
-        this.artist = artist;
-    }
-
-    public boolean isAvailability() {
-        return availability;
-    }
-
-    public void setAvailability(boolean availability) {
-        this.availability = availability;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }
