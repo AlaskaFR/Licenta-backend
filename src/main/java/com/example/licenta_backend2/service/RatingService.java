@@ -1,10 +1,16 @@
 package com.example.licenta_backend2.service;
 
+import com.example.licenta_backend2.dto.RatingDTO;
+import com.example.licenta_backend2.model.Product;
 import com.example.licenta_backend2.model.Rating;
+import com.example.licenta_backend2.model.User;
+import com.example.licenta_backend2.repository.ProductRepository;
 import com.example.licenta_backend2.repository.RatingRepository;
+import com.example.licenta_backend2.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -12,27 +18,41 @@ import java.util.stream.Collectors;
 public class RatingService {
 
     @Autowired
-    private RatingRepository ratingRepo;
+    private RatingRepository ratingRepository;
 
-    public List<Rating> findByProductId(Long productId) {
-        return ratingRepo.findByProductId(productId);
-    }
+    @Autowired
+    private UserRepository userRepository;
 
-    public void saveRating(Rating rating) {
-        ratingRepo.save(rating);
+    @Autowired
+    private ProductRepository productRepository;
+
+    public void saveRating(RatingDTO ratingDTO) {
+        Rating rating = new Rating();
+
+        Optional<Product> product = productRepository.findById(Long.valueOf(ratingDTO.getProductId()));
+        Optional<User> user = userRepository.findByEmail(ratingDTO.getUserEmail());
+
+        if (product.isPresent() && user.isPresent()) {
+            rating.setProduct(product.get());
+            rating.setUser(user.get());
+            rating.setCreatedAt(LocalDateTime.now());
+            rating.setUpdatedAt(LocalDateTime.now());
+            rating.setRating(ratingDTO.getRating());
+            ratingRepository.save(rating);
+        }
     }
 
     public double calculateAverageRating(Long productId) {
-        List<Rating> ratings = ratingRepo.findByProductId(productId);
+        List<Rating> ratings = ratingRepository.findRatingsByProductId(productId);
         return ratings.stream().mapToDouble(Rating::getRating).average().orElse(0.0);
     }
 
     public int countRatings(Long productId) {
-        return ratingRepo.findByProductId(productId).size();
+        return ratingRepository.findRatingsByProductId(productId).size();
     }
 
     public List<Long> getRecommendations(Long userId) {
-        List<Rating> allRatings = ratingRepo.findAll();
+        List<Rating> allRatings = ratingRepository.findAll();
         // Group ratings by user ID
         Map<Long, List<Rating>> ratingsByUser = allRatings.stream().collect(Collectors.groupingBy(r -> r.getUser().getId()));
 
@@ -54,7 +74,7 @@ public class RatingService {
                 .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
                 .limit(topN)
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+                .toList();
 
         // Collect products highly rated by similar users
         Set<Long> recommendedProducts = new HashSet<>();
@@ -78,32 +98,37 @@ public class RatingService {
     }
 
     private double calculateSimilarity(List<Rating> ratings1, List<Rating> ratings2) {
-        Map<Long, Double> ratingsMap1 = ratings1.stream()
-                .collect(Collectors.toMap(r -> r.getProduct().getId(), Rating::getRating));
-        Map<Long, Double> ratingsMap2 = ratings2.stream()
-                .collect(Collectors.toMap(r -> r.getProduct().getId(), Rating::getRating));
+        Map<Long, List<Double>> ratingsMap1 = new HashMap<>();
+        ratings1.forEach(rating -> ratingsMap1.computeIfAbsent(rating.getProduct().getId(), element -> new ArrayList<>()).add(rating.getRating()));
+
+        Map<Long, List<Double>> ratingsMap2 = new HashMap<>();
+        ratings2.forEach(rating -> ratingsMap2.computeIfAbsent(rating.getProduct().getId(), element -> new ArrayList<>()).add(rating.getRating()));
 
         Set<Long> commonProducts = new HashSet<>(ratingsMap1.keySet());
         commonProducts.retainAll(ratingsMap2.keySet());
 
         if (commonProducts.isEmpty()) return 0.0;
 
-        double sum1 = 0.0, sum2 = 0.0, sum1Sq = 0.0, sum2Sq = 0.0, productSum = 0.0;
+        double sumRating1 = 0.0, sumRating2 = 0.0, sumSquaredRating1 = 0.0, sumSquaredRating2 = 0.0, sumRating1Rating2 = 0.0;
         int commonCount = commonProducts.size();
 
         for (Long productId : commonProducts) {
-            double rating1 = ratingsMap1.get(productId);
-            double rating2 = ratingsMap2.get(productId);
+            double rating1 = ratingsMap1.get(productId).stream().reduce(0.0, Double::sum) / ratingsMap1.get(productId).size();
+            double rating2 = ratingsMap2.get(productId).stream().reduce(0.0, Double::sum) / ratingsMap2.get(productId).size();
 
-            sum1 += rating1;
-            sum2 += rating2;
-            sum1Sq += Math.pow(rating1, 2);
-            sum2Sq += Math.pow(rating2, 2);
-            productSum += rating1 * rating2;
+            sumRating1 += rating1;
+            sumRating2 += rating2;
+
+            sumRating1Rating2 += rating1 * rating2;
+
+            sumSquaredRating1 += Math.pow(rating1, 2);
+            sumSquaredRating2 += Math.pow(rating2, 2);
         }
 
-        double numerator = productSum - (sum1 * sum2 / commonCount);
-        double denominator = Math.sqrt((sum1Sq - Math.pow(sum1, 2) / commonCount) * (sum2Sq - Math.pow(sum2, 2) / commonCount));
+        double numerator = commonCount * sumRating1Rating2 - sumRating1 * sumRating2;
+
+        double denominator = Math.sqrt((commonCount * sumSquaredRating1 - sumRating1 * sumRating1) * (commonCount * sumSquaredRating2 - sumRating2 * sumRating2));
+
         if (denominator == 0) return 0.0;
 
         return numerator / denominator;
