@@ -98,39 +98,40 @@ public class RatingService {
     }
 
     private double calculateSimilarity(List<Rating> ratings1, List<Rating> ratings2) {
-        Map<Long, List<Double>> ratingsMap1 = new HashMap<>();
-        ratings1.forEach(rating -> ratingsMap1.computeIfAbsent(rating.getProduct().getId(), element -> new ArrayList<>()).add(rating.getRating()));
+        // Create a map of product IDs to ratings for both users
+        Map<Long, Double> ratingsMap1 = ratings1.stream()
+                .collect(Collectors.toMap(r -> r.getProduct().getId(), Rating::getRating));
+        Map<Long, Double> ratingsMap2 = ratings2.stream()
+                .collect(Collectors.toMap(r -> r.getProduct().getId(), Rating::getRating));
 
-        Map<Long, List<Double>> ratingsMap2 = new HashMap<>();
-        ratings2.forEach(rating -> ratingsMap2.computeIfAbsent(rating.getProduct().getId(), element -> new ArrayList<>()).add(rating.getRating()));
-
+        // Find common products rated by both users
         Set<Long> commonProducts = new HashSet<>(ratingsMap1.keySet());
         commonProducts.retainAll(ratingsMap2.keySet());
 
-        if (commonProducts.isEmpty()) return 0.0;
-
-        double sumRating1 = 0.0, sumRating2 = 0.0, sumSquaredRating1 = 0.0, sumSquaredRating2 = 0.0, sumRating1Rating2 = 0.0;
-        int commonCount = commonProducts.size();
-
-        for (Long productId : commonProducts) {
-            double rating1 = ratingsMap1.get(productId).stream().reduce(0.0, Double::sum) / ratingsMap1.get(productId).size();
-            double rating2 = ratingsMap2.get(productId).stream().reduce(0.0, Double::sum) / ratingsMap2.get(productId).size();
-
-            sumRating1 += rating1;
-            sumRating2 += rating2;
-
-            sumRating1Rating2 += rating1 * rating2;
-
-            sumSquaredRating1 += Math.pow(rating1, 2);
-            sumSquaredRating2 += Math.pow(rating2, 2);
+        if (commonProducts.isEmpty()) {
+            // No common products, similarity is zero
+            return 0.0;
         }
 
-        double numerator = commonCount * sumRating1Rating2 - sumRating1 * sumRating2;
+        // Calculate the averages of the ratings
+        double avg1 = ratingsMap1.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        double avg2 = ratingsMap2.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
 
-        double denominator = Math.sqrt((commonCount * sumSquaredRating1 - sumRating1 * sumRating1) * (commonCount * sumSquaredRating2 - sumRating2 * sumRating2));
+        // Calculate the Pearson correlation coefficient
+        double sumProduct = 0.0;
+        double sumSquareDiff1 = 0.0;
+        double sumSquareDiff2 = 0.0;
 
-        if (denominator == 0) return 0.0;
+        for (Long productId : commonProducts) {
+            double diff1 = ratingsMap1.get(productId) - avg1;
+            double diff2 = ratingsMap2.get(productId) - avg2;
 
-        return numerator / denominator;
+            sumProduct += diff1 * diff2;
+            sumSquareDiff1 += diff1 * diff1;
+            sumSquareDiff2 += diff2 * diff2;
+        }
+
+        double denominator = Math.sqrt(sumSquareDiff1) * Math.sqrt(sumSquareDiff2);
+        return denominator == 0.0 ? 0.0 : sumProduct / denominator;
     }
 }
